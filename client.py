@@ -8,8 +8,10 @@ import uuid
 from xml.dom import minidom
 
 # Smartly import hashlib and fall back on md5
-try: from hashlib import md5
-except ImportError: from md5 import md5
+try:
+    from hashlib import md5
+except ImportError:
+    from md5 import md5
 
 
 def make_utf8(dictionary):
