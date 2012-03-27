@@ -246,10 +246,7 @@ class CourseService(object):
         courseid -- the unique identifier for the course
         path -- the relative path to the zip file to import
         """
-        request = self.service.request()
-        request.parameters['courseid'] = courseid
-        request.parameters['path'] = path
-        result = request.call_service('rustici.course.importCourse')
+        result = self.service.make_call('rustici.course.importCourse', courseid=courseid, path=path)
         ir = ImportResult.list_from_result(result)
         return ir
     
@@ -260,9 +257,7 @@ class CourseService(object):
         Arguments:
         courseid -- the unique identifier for the course
         """
-        request = self.service.request()
-        request.parameters['courseid'] = courseid
-        return request.call_service('rustici.course.deleteCourse')
+        return self.service.make_call('rustici.course.deleteCourse', courseid=courseid)
 
     def get_assets(self, courseid, path=None):
         """
@@ -274,11 +269,10 @@ class CourseService(object):
         path -- the path (relative to the course root) of the file to download.
             If not provided or is None, all course files will be downloaded.
         """
-        request = self.service.request()
-        request.parameters['courseid'] = courseid
+        params = {'courseid' : courseid}
         if (path is not None):
-            request.parameters['path'] = path
-        return request.call_service('rustici.course.getAssets') 
+            params['path'] = path
+        return self.service.make_call('rustici.course.getAssets', **params)
         
     def get_course_list(self, courseIdFilterRegex=None):
         """
@@ -289,10 +283,10 @@ class CourseService(object):
         courseIdFilterRegex -- (optional) Regular expression to filter courses
             by ID
         """
-        request = self.service.request()
+        params = {}
         if courseIdFilterRegex is not None:
-            request.parameters['filter'] = courseIdFilterRegex
-        result = request.call_service('rustici.course.getCourseList')
+            params['filter'] = courseIdFilterRegex
+        result = self.service.make_call('rustici.course.getCourseList', **params)
         courses = CourseData.list_from_result(result)
         return courses 
 
@@ -325,9 +319,7 @@ class CourseService(object):
         Arguments:
         courseid -- the unique identifier for the course
         """
-        request = self.service.request()
-        request.parameters['courseid'] = courseid
-        return request.call_service('rustici.course.getMetadata')
+        return self.service.make_call('rustici.course.getMetadata', courseid=courseid)
 
     def get_property_editor_url(self, courseid, stylesheetUrl=None, 
                                 notificationFrameUrl=None):
@@ -362,9 +354,7 @@ class CourseService(object):
         courseid -- the unique identifier for the course
         versionid -- the specific version of the course
         """
-        request = self.service.request()
-        request.parameters['courseid'] = courseid
-        xmldoc = request.call_service('rustici.course.getAttributes')
+        xmldoc = self.service.make_call('rustici.course.getAttributes', courseid=courseid)
 
         attrNodes = xmldoc.getElementsByTagName('attribute')
         atts = {}
@@ -380,11 +370,7 @@ class CourseService(object):
         courseid -- the unique identifier for the course
         attributePairs -- the attribute name/value pairs to update
         """
-        request = self.service.request()
-        request.parameters['courseid'] = courseid
-        for (key, value) in attributePairs.iteritems():
-            request.parameters[key] = value
-        xmldoc = request.call_service('rustici.course.updateAttributes')
+        xmldoc = self.service.make_call('rustici.course.updateAttributes', courseid=courseid, **attributePairs)
 
         attrNodes = xmldoc.getElementsByTagName('attribute')
         atts = {}
