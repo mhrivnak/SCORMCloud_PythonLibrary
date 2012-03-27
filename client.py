@@ -141,12 +141,11 @@ class ScormCloudService(object):
         """
         return ServiceRequest(self)
 
-    def make_call(self, method):
+    def make_call(self, method, **kwargs):
         """
-        Convenience method to create and call a simple ServiceRequest (no
-        parameters).
+        Convenience method to create and call a ServiceRequest
         """
-        return self.request().call_service(method)
+        return self.request().call_service(method, **kwargs)
 
 class DebugService(object):
     """
