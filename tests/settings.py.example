@@ -1,0 +1,4 @@
+# copy this to 'settings.py' and then fill in the values
+APPID = ''
+SECRET = ''
+URL = 'http://cloud.scorm.com/EngineWebServices/api'
