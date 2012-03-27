@@ -308,12 +308,14 @@ class CourseService(object):
             exit
         stylesheeturl -- the URL for the CSS stylesheet to include
         """
-        request = self.service.request()
-        request.parameters['courseid'] = courseid
-        request.parameters['redirecturl'] = redirecturl
+        params = {
+            'courseid' : courseid,
+            'redirecturl' : redirecturl
+        }
         if stylesheeturl is not None:
-            request.parameters['stylesheet'] = stylesheeturl
-        url = request.construct_url('rustici.course.preview')
+            params['stylesheet'] = stylesheeturl
+
+        url = '?'.join(self.service.request().build_url('rustici.course.preview', **params))
         logging.info('preview link: '+ url)
         return url
 
@@ -342,14 +344,14 @@ class CourseService(object):
             "onload" by using a notificationFrameUrl that is on the same domain 
             as the host system and calling parent.parent.method()
         """
-        request = self.service.request()
-        request.parameters['courseid'] = courseid
+        params = {'courseid' : courseid}
         if stylesheetUrl is not None:
-            request.parameters['stylesheet'] = stylesheetUrl
+            params['stylesheet'] = stylesheetUrl
         if notificationFrameUrl is not None:
-            request.parameters['notificationframesrc'] = notificationFrameUrl
-        
-        url = request.construct_url('rustici.course.properties')
+            params['notificationframesrc'] = notificationFrameUrl
+
+        url = '?'.join(self.service.request().build_url('rustici.course.properties', **params))
+
         logging.info('properties link: '+url)
         return url
     
@@ -450,19 +452,21 @@ class RegistrationService(object):
         registrationTags -- comma-delimited list of tags to associate with the
             launched registration
         """
-        request = self.service.request()
-        request.parameters['regid'] = regid
-        request.parameters['redirecturl'] = redirecturl + '?regid=' + regid
+        params = {
+            'regid' : regid,
+            'redirecturl' : redirecturl + '?regid=' + regid
+        }
         if cssUrl is not None:
-            request.parameters['cssurl'] = cssUrl
+            params['cssurl'] = cssUrl
         if courseTags is not None:
-            request.parameters['coursetags'] = courseTags
+            params['coursetags'] = courseTags
         if learnerTags is not None:
-            request.parameters['learnertags'] = learnerTags
+            params['learnertags'] = learnerTags
         if registrationTags is not None:
-            request.parameters['registrationTags'] = registrationTags
-        url = request.construct_url('rustici.registration.launch')
-        return url
+            params['registrationTags'] = registrationTags
+
+        return '?'.join(self.service.request().build_url('rustici.registration.launch', **params))
+
     
     def get_registration_list(self, regIdFilterRegex=None, 
                               courseIdFilterRegex=None):
@@ -616,12 +620,8 @@ class ReportingService(object):
             get_reportage_auth
         reportUrl -- the URL to the desired Reportage entry point
         """
-        request = self.service.request()
-        request.parameters['auth'] = auth
-        request.parameters['reporturl'] = reportUrl
-        url = request.construct_url('rustici.reporting.launchReport')
-        return url 
-    
+        return '?'.join(self.service.request().build_url('rustici.reporting.launchReport', auth=auth, reporturl=reportUrl))
+
     def get_reportage_url(self, auth):
         """
         Returns the authenticated URL to the main Reportage entry point.
