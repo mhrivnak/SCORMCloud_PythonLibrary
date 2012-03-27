@@ -146,7 +146,7 @@ class DebugService(object):
         try:
             xmldoc = self.service.make_call('rustici.debug.ping')
             return xmldoc.documentElement.attributes['stat'].value == 'ok'
-        except Exception, ex:
+        except (ScormCloudError, IOError):
             return False
     
     def authping(self):
@@ -157,7 +157,7 @@ class DebugService(object):
         try:
             xmldoc = self.service.make_call('rustici.debug.authPing')
             return xmldoc.documentElement.attributes['stat'].value == 'ok'
-        except Exception, ex:
+        except (ScormCloudError, IOError):
             return False
 
 
@@ -765,9 +765,8 @@ class TagSettings(object):
     
     
 class ScormCloudError(Exception):
-    def __init__(self, msg, json=None):
+    def __init__(self, msg):
         self.msg = msg
-        self.json = json
     def __str__(self):
         return repr(self.msg)
 
@@ -916,7 +915,7 @@ class ServiceRequest(object):
         rsp = xmldoc.documentElement
         if rsp.attributes['stat'].value != 'ok':
             err = rsp.firstChild
-            raise Exception('SCORM Cloud Error: %s - %s' %
+            raise ScormCloudError('SCORM Cloud Error: %s - %s' %
                             (err.attributes['code'].value, 
                              err.attributes['msg'].value))
         return xmldoc
