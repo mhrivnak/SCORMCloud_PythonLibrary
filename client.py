@@ -214,10 +214,7 @@ class UploadService(object):
         """
         token = self.get_upload_token()
         if token:
-            request = self.service.request()
-            request.parameters['tokenid'] = token.tokenid
-            request.parameters['redirecturl'] = callbackurl
-            return request.construct_url('rustici.upload.uploadFile') 
+            return '?'.join(self.service.request().build_url('rustici.upload.uploadFile', tokenid=token.tokenid, redirecturl=callbackurl))
         else:
             return None
         
@@ -907,18 +904,33 @@ class ServiceRequest(object):
         **kwargs -- parameters to pass to the remote method. These will override
             self.parameters
         """
+        url, encoded_params = self.build_url(method, **kwargs)
+
+        #if self.file_ is not None:
+            # TODO: Implement file upload
+        rawresponse = self.send_post(url, encoded_params)
+        response = self.get_xml(rawresponse)
+        return response
+
+    def build_url(self, method, **kwargs):
+        """
+        Build the components of a URL.
+
+        method -- name of the remote method to call
+        **kwargs -- any additional named parameters to pass to the remote method
+
+        Returns a tuple of the base url, followed by the encoded parameters.
+        Joining them with a '?' will get you the full URL.
+        """
         request_params = {'method' : method}
         request_params.update(self.parameters)
         request_params.update(kwargs)
         request_params.update(self.auth_dict)
         encoded_params = self._encode_and_sign(request_params, self.service.config.secret)
 
-        #if self.file_ is not None:
-            # TODO: Implement file upload
         url = ScormCloudUtilities.clean_cloud_host_url(self.service.config.serviceurl)
-        rawresponse = self.send_post(url, encoded_params)
-        response = self.get_xml(rawresponse)
-        return response
+
+        return url, encoded_params
 
     @staticmethod
     def get_xml(raw):

@@ -2,3 +2,7 @@
 APPID = ''
 SECRET = ''
 URL = 'http://cloud.scorm.com/EngineWebServices/api'
+
+# Some tests use the live API server over the internet to test functionality.
+# If you don't want to do that, set this to False.
+ENABLE_NETWORK_TESTS = True
