@@ -1,7 +1,6 @@
 import datetime
 import logging
 import re
-import sys
 import urllib
 import urllib2
 import uuid
@@ -56,7 +55,6 @@ class ScormCloudService(object):
 
     def __init__(self, configuration):
         self.config = configuration
-        self.__handler_cache = {}
         
     @classmethod
     def withconfig(cls, config):
