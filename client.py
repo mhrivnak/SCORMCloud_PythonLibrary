@@ -879,7 +879,7 @@ class ServiceRequest(object):
         self.parameters = dict()
         self.file_ = None
 
-    def call_service(self, method, serviceurl=None):
+    def call_service(self, method, **kwargs):
         """
         Calls the specified web service method using any parameters set on the
         ServiceRequest.
@@ -887,43 +887,24 @@ class ServiceRequest(object):
         Arguments:
         method -- the full name of the web service method to call.
             For example: rustici.registration.createRegistration
-        serviceurl -- (optional) used to override the service host URL for a
-            single call
+        **kwargs -- parameters to pass to the remote method. These will override
+            self.parameters
         """
-        postparams = None
+        request_params = {'method' : method}
+        request_params.update(self.parameters)
+        request_params.update(kwargs)
+        request_params.update(self.auth_dict)
+        encoded_params = self._encode_and_sign(request_params, self.service.config.secret)
+
         #if self.file_ is not None:
             # TODO: Implement file upload
-        url = self.construct_url(method, serviceurl)
-        rawresponse = self.send_post(url, postparams)
+        url = ScormCloudUtilities.clean_cloud_host_url(self.service.config.serviceurl)
+        rawresponse = self.send_post(url, encoded_params)
         response = self.get_xml(rawresponse)
         return response
 
-    def construct_url(self, method, serviceurl=None):
-        """
-        Gets the full URL for a Cloud web service call, including parameters.
-
-        Arguments:
-        method -- the full name of the web service method to call.
-            For example: rustici.registration.createRegistration
-        serviceurl -- (optional) used to override the service host URL for a
-            single call
-        """
-        params = {'method': method}
-        
-        #          'appid': self.service.config.appid,
-        #          'origin': self.service.config.origin,
-        #          'ts': datetime.datetime.utcnow().strftime('yyyyMMddHHmmss'),
-        #          'applib': 'python'}
-        for k, v in self.parameters.iteritems():
-            params[k] = v
-        url = self.service.config.serviceurl
-        if serviceurl is not None:
-            url = serviceurl
-        url = (ScormCloudUtilities.clean_cloud_host_url(url) + '?' +
-              self._encode_and_sign(params))
-        return url
-
-    def get_xml(self, raw):
+    @staticmethod
+    def get_xml(raw):
         """
         Parses the raw response string as XML and asserts that there was no
         error in the result.
@@ -940,33 +921,37 @@ class ServiceRequest(object):
                              err.attributes['msg'].value))
         return xmldoc
 
-    def send_post(self, url, postparams):
+    @staticmethod
+    def send_post(url, postparams):
         cloudsocket = urllib2.urlopen(url, postparams)
         reply = cloudsocket.read()
         cloudsocket.close()
         return reply
 
-    def _encode_and_sign(self, dictionary):
+    @staticmethod
+    def _encode_and_sign(params, secret):
         """
         URL encodes the data in the dictionary, and signs it using the
         given secret, if a secret was given.
 
         Arguments:
-        dictionary -- the dictionary containing the key/value parameter pairs
+        params -- the dictionary containing all key/value parameter pairs
         """ 
-        dictionary['appid'] = self.service.config.appid
-        dictionary['origin'] = self.service.config.origin;
-        dictionary['ts'] = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
-        dictionary['applib'] = "python"
-        dictionary = make_utf8(dictionary)
-        signing = ''
-        values = list()
-        secret = self.service.config.secret
-        for key in sorted(dictionary.keys()):
-            signing += key + dictionary[key]
-            values.append(key + '=' + urllib.quote_plus(dictionary[key]))
-        values.append('sig=' + md5(secret + signing).hexdigest())
-        return '&'.join(values)
+
+        params = make_utf8(params)
+        signing = ''.join([key + params[key] for key in sorted(params.keys())])
+        params['sig'] = md5(secret + signing).hexdigest()
+        return urllib.urlencode(params)
+
+    @property
+    def auth_dict(self):
+        """Return a dict of the 4 auth params that are required for each call"""
+        return {
+            'appid' : self.service.config.appid,
+            'origin' : self.service.config.origin,
+            'ts' : datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S"),
+            'applib' : 'python'
+        }
 
 
 class ScormCloudUtilities(object):
