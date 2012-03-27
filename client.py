@@ -87,11 +87,19 @@ class ScormCloudService(object):
         """
         return cls(Configuration(appid, secret, serviceurl, origin))
 
+    @property
+    def course_service(self):
+        return CourseService(self)
+
     def get_course_service(self):
         """
         Retrieves the CourseService.
         """
         return CourseService(self)
+
+    @property
+    def debug_service(self):
+        return DebugService(self)
 
     def get_debug_service(self):
         """
@@ -99,11 +107,19 @@ class ScormCloudService(object):
         """
         return DebugService(self)
 
+    @property
+    def registration_service(self):
+        return RegistrationService(self)
+
     def get_registration_service(self):
         """
         Retrieves the RegistrationService.
         """
         return RegistrationService(self)
+
+    @property
+    def reporting_service(self):
+        return ReportingService(self)
 
     def get_reporting_service(self):
         """
@@ -111,6 +127,10 @@ class ScormCloudService(object):
         """
         return ReportingService(self)
 
+    @property
+    def upload_service(self):
+        return UploadService(self)
+    
     def get_upload_service(self):
         """
         Retrieves the UploadService.
