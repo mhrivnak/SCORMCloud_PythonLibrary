@@ -729,12 +729,11 @@ class ScormCloudError(Exception):
         return repr(self.msg)
 
 class ImportResult(object):
-    wasSuccessful = False
-    title = ""
-    message = ""
-    parserWarnings = []
-
     def __init__(self, importResultElement):
+        self.wasSuccessful = False
+        self.title = ""
+        self.message = ""
+        self.parserWarnings = []
         if importResultElement is not None:
             self.wasSuccessful = (importResultElement.attributes['successful']
                                  .value == 'true')
@@ -754,13 +753,10 @@ class ImportResult(object):
         API method that returns importresult elements.
 
         Arguments:
-        data -- the raw result of the API method
+        xmldoc -- the minidom.Document instance resulting from a remote call
         """
-        allResults = [];
         importresults = xmldoc.getElementsByTagName("importresult")
-        for ir in importresults:
-            allResults.append(cls(ir))
-        return allResults    
+        return [cls(ir) for ir in importresults]
 
 class CourseData(object):
     courseId = ""
