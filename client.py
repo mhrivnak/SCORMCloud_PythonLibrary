@@ -147,14 +147,35 @@ class ScormCloudService(object):
         """
         return self.request().call_service(method, **kwargs)
 
-class DebugService(object):
+
+class BaseServiceArea(object):
+    def __init__(self, service):
+        self.service = service
+
+    @staticmethod
+    def build_params(locals_received):
+        """
+        takes a dict and returns a new dict that excludes items where value is
+        None or key == 'self'. It's especially useful to pass locals() to this.
+        """
+        return dict(((key, value) for key, value in locals_received.iteritems() if value is not None and key != 'self'))
+
+    def build_and_make_call(self, method_name, locals_received):
+        """
+        Makes a call to the named method based on parameters from locals_received
+
+        method_name -- name of the remote method to call
+        locals_received -- dict of parameters, usually just locals(). values
+            will be excluded if None or if key == 'self'
+        """
+        return self.service.make_call(method_name, **self.build_params(locals_received))
+        
+
+class DebugService(BaseServiceArea):
     """
     Debugging and testing service that allows you to check the status of the
     SCORM Cloud and test your configuration settings.
     """
-
-    def __init__(self, service):
-        self.service = service
 
     def ping(self):
         """
@@ -178,14 +199,11 @@ class DebugService(object):
             return False
 
 
-class UploadService(object):
+class UploadService(BaseServiceArea):
     """
     Service that provides functionality to upload files to the SCORM Cloud.
     """
 
-    def __init__(self, service):
-        self.service = service
-        
     def get_upload_token(self):
         """
         Retrieves an upload token which must be used to successfully upload a
@@ -222,21 +240,16 @@ class UploadService(object):
         Deletes the specified file.
         """
         locParts = location.split("/")
-        request = self.service.request()
-        request.parameters['file'] = locParts[len(locParts) - 1]
-        return request.call_service('rustici.upload.deleteFiles')
+        return self.service.make_call('rustici.upload.deleteFiles', file=locParts[len(locParts) - 1])
         
     
-class CourseService(object):
+class CourseService(BaseServiceArea):
     """
     Service that provides methods to manage and interact with courses on the
     SCORM Cloud. These methods correspond to the "rustici.course.*" web service
     methods.
     """
 
-    def __init__(self, service):
-        self.service = service
-        
     def import_uploaded_course(self, courseid, path):
         """
         Imports a SCORM PIF (zip file) from an existing zip file on the SCORM
@@ -246,7 +259,7 @@ class CourseService(object):
         courseid -- the unique identifier for the course
         path -- the relative path to the zip file to import
         """
-        result = self.service.make_call('rustici.course.importCourse', courseid=courseid, path=path)
+        result = self.build_and_make_call('rustici.course.importCourse', locals())
         ir = ImportResult.list_from_result(result)
         return ir
     
@@ -257,7 +270,7 @@ class CourseService(object):
         Arguments:
         courseid -- the unique identifier for the course
         """
-        return self.service.make_call('rustici.course.deleteCourse', courseid=courseid)
+        return self.build_and_make_call('rustici.course.deleteCourse', locals())
 
     def get_assets(self, courseid, path=None):
         """
@@ -269,10 +282,7 @@ class CourseService(object):
         path -- the path (relative to the course root) of the file to download.
             If not provided or is None, all course files will be downloaded.
         """
-        params = {'courseid' : courseid}
-        if (path is not None):
-            params['path'] = path
-        return self.service.make_call('rustici.course.getAssets', **params)
+        return self.build_and_make_call('rustici.course.getAssets', locals())
         
     def get_course_list(self, courseIdFilterRegex=None):
         """
@@ -283,10 +293,7 @@ class CourseService(object):
         courseIdFilterRegex -- (optional) Regular expression to filter courses
             by ID
         """
-        params = {}
-        if courseIdFilterRegex is not None:
-            params['filter'] = courseIdFilterRegex
-        result = self.service.make_call('rustici.course.getCourseList', **params)
+        result = self.build_and_make_call('rustici.course.getCourseList', {'filter' : courseIdFilerRegex})
         courses = CourseData.list_from_result(result)
         return courses 
 
@@ -301,13 +308,11 @@ class CourseService(object):
             exit
         stylesheeturl -- the URL for the CSS stylesheet to include
         """
-        params = {
+        params = self.build_params({
             'courseid' : courseid,
-            'redirecturl' : redirecturl
-        }
-        if stylesheeturl is not None:
-            params['stylesheet'] = stylesheeturl
-
+            'redirecturl' : redirecturl,
+            'stylesheet' : stylesheeturl
+        })
         url = '?'.join(self.service.request().build_url('rustici.course.preview', **params))
         logging.info('preview link: '+ url)
         return url
@@ -319,7 +324,7 @@ class CourseService(object):
         Arguments:
         courseid -- the unique identifier for the course
         """
-        return self.service.make_call('rustici.course.getMetadata', courseid=courseid)
+        return self.build_and_make_call('rustici.course.getMetadata', locals())
 
     def get_property_editor_url(self, courseid, stylesheetUrl=None, 
                                 notificationFrameUrl=None):
@@ -335,11 +340,12 @@ class CourseService(object):
             "onload" by using a notificationFrameUrl that is on the same domain 
             as the host system and calling parent.parent.method()
         """
-        params = {'courseid' : courseid}
-        if stylesheetUrl is not None:
-            params['stylesheet'] = stylesheetUrl
-        if notificationFrameUrl is not None:
-            params['notificationframesrc'] = notificationFrameUrl
+        # this should go away if we can change method parameter names to match
+        params = self.build_params({
+            'courseid' : courseid,
+            'stylesheet' : stylesheetUrl,
+            'notificationframesrc' : notificationFrameUrl
+        })
 
         url = '?'.join(self.service.request().build_url('rustici.course.properties', **params))
 
@@ -352,9 +358,8 @@ class CourseService(object):
 
         Arguments:
         courseid -- the unique identifier for the course
-        versionid -- the specific version of the course
         """
-        xmldoc = self.service.make_call('rustici.course.getAttributes', courseid=courseid)
+        xmldoc = self.build_and_make_call('rustici.course.getAttributes', locals())
 
         attrNodes = xmldoc.getElementsByTagName('attribute')
         atts = {}
@@ -379,16 +384,13 @@ class CourseService(object):
         return atts
         
 
-class RegistrationService(object):
+class RegistrationService(BaseServiceArea):
     """
     Service that provides methods for managing and interacting with
     registrations on the SCORM Cloud. These methods correspond to the
     "rustici.registration.*" web service methods.
     """
 
-    def __init__(self, service):
-        self.service = service
-        
     def create_registration(self, regid, courseid, userid, fname, lname, 
                             email=None):
         """
@@ -404,16 +406,7 @@ class RegistrationService(object):
         """
         if regid is None:
             regid = str(uuid.uuid1())
-        request = self.service.request()
-        request.parameters['appid'] = self.service.config.appid
-        request.parameters['courseid'] = courseid
-        request.parameters['regid'] = regid
-        request.parameters['fname'] = fname
-        request.parameters['lname'] = lname
-        request.parameters['learnerid'] = userid
-        if email is not None:
-            request.parameters['email'] = email
-        xmldoc = request.call_service('rustici.registration.createRegistration')
+        xmldoc = self.build_and_make_call('rustici.registration.createRegistration', locals())
         successNodes = xmldoc.getElementsByTagName('success')
         if successNodes.length == 0:
             raise ScormCloudError("Create Registration failed.  " + 
@@ -437,20 +430,10 @@ class RegistrationService(object):
         registrationTags -- comma-delimited list of tags to associate with the
             launched registration
         """
-        params = {
-            'regid' : regid,
-            'redirecturl' : redirecturl + '?regid=' + regid
-        }
-        if cssUrl is not None:
-            params['cssurl'] = cssUrl
-        if courseTags is not None:
-            params['coursetags'] = courseTags
-        if learnerTags is not None:
-            params['learnertags'] = learnerTags
-        if registrationTags is not None:
-            params['registrationTags'] = registrationTags
+        redirecturl = redirecturl + '?regid=' + regid
 
-        return '?'.join(self.service.request().build_url('rustici.registration.launch', **params))
+        return '?'.join(self.service.request().build_url(
+            'rustici.registration.launch', **self.build_params(locals())))
 
     
     def get_registration_list(self, regIdFilterRegex=None, 
@@ -465,14 +448,8 @@ class RegistrationService(object):
         courseIdFilterRegex -- (optional) the regular expression used to filter
             the list by course ID
         """
-        request = self.service.request()
-        if regIdFilterRegex is not None:
-            request.parameters['filter'] = regIdFilterRegex
-        if courseIdFilterRegex is not None:
-            request.parameters['coursefilter'] = courseIdFilterRegex
-            
-        result = request.call_service(
-                 'rustici.registration.getRegistrationList')
+        result = self.build_and_make_call(
+            'rustici.registration.getRegistrationList', locals())
         regs = RegistrationData.list_from_result(result)
         return regs 
         
@@ -485,11 +462,8 @@ class RegistrationService(object):
         resultsformat -- (optional) can be "course", "activity", or "full" to
             determine the level of detail returned. The default is "course"
         """
-        request = self.service.request()
-        request.parameters['regid'] = regid
-        request.parameters['resultsformat'] = resultsformat
-        return request.call_service(
-               'rustici.registration.getRegistrationResult')
+        return self.build_and_make_call(
+            'rustici.registration.getRegistrationResult', locals())
 
     def get_launch_history(self, regid):
         """
@@ -500,9 +474,7 @@ class RegistrationService(object):
         Arguments:
         regid -- the unique identifier for the registration
         """
-        request = self.service.request()
-        request.parameters['regid'] = regid
-        return request.call_service('rustici.registration.getLaunchHistory')
+        return self.build_and_make_call('rustici.registration.getLaunchHistory', locals())
         
     def reset_registration(self, regid):
         """
@@ -512,9 +484,7 @@ class RegistrationService(object):
         Arguments:
         regid -- the unique identifier for the registration
         """
-        request = self.service.request()
-        request.parameters['regid'] = regid
-        return request.call_service('rustici.registration.resetRegistration')
+        return self.build_and_make_call('rustici.registration.resetRegistration', locals())
         
     def reset_global_objectives(self, regid):
         """
@@ -523,10 +493,8 @@ class RegistrationService(object):
         Arguments:
         regid -- the unique identifier for the registration
         """
-        request = self.service.request()
-        request.parameters['regid'] = regid
-        return request.call_service(
-               'rustici.registration.resetGlobalObjectives')
+        return self.build_and_make_call(
+               'rustici.registration.resetGlobalObjectives', locals())
         
     def delete_registration(self, regid):
         """
@@ -535,19 +503,14 @@ class RegistrationService(object):
         Arguments:
         regid -- the unique identifier for the registration
         """
-        request = self.service.request()
-        request.parameters['regid'] = regid
-        return request.call_service('rustici.registration.deleteRegistration')
+        return self.build_and_make_call('rustici.registration.deleteRegistration', locals())
         
 
-class ReportingService(object):
+class ReportingService(BaseServiceArea):
     """
     Service that provides methods for interacting with the Reportage service.
     """
 
-    def __init__(self, service):
-        self.service = service
-    
     def get_reportage_date(self):
         """
         Gets the date/time, according to Reportage.
@@ -575,10 +538,11 @@ class ReportingService(object):
             parameter.
         allowadmin -- if True, the Reportage session will have admin privileges
         """
-        request = self.service.request()
-        request.parameters['navpermission'] = navperm
-        request.parameters['admin'] = 'true' if allowadmin else 'false'
-        xmldoc = request.call_service('rustici.reporting.getReportageAuth')
+        params = {
+            'navpermission' : navperm,
+            'admin' : 'true' if allowadmin is True else 'false'
+        }
+        xmldoc = self.build_and_make_call('rustici.reporting.getReportageAuth', params)
         token = xmldoc.getElementsByTagName('auth')
         if token.length > 0:
             return token[0].childNodes[0].nodeValue
@@ -605,7 +569,8 @@ class ReportingService(object):
             get_reportage_auth
         reportUrl -- the URL to the desired Reportage entry point
         """
-        return '?'.join(self.service.request().build_url('rustici.reporting.launchReport', auth=auth, reporturl=reportUrl))
+        return '?'.join(self.service.request().build_url(
+            'rustici.reporting.launchReport', **self.build_params(locals())))
 
     def get_reportage_url(self, auth):
         """
