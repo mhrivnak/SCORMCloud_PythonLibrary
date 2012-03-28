@@ -221,8 +221,6 @@ class UploadService(BaseServiceArea):
         if server and tokenid:
             token = UploadToken(server,tokenid)
             return token
-        else:
-            return None
 
     def get_upload_url(self, callbackurl):
         """
@@ -232,8 +230,6 @@ class UploadService(BaseServiceArea):
         token = self.get_upload_token()
         if token:
             return '?'.join(self.service.request().build_url('rustici.upload.uploadFile', tokenid=token.tokenid, redirecturl=callbackurl))
-        else:
-            return None
         
     def delete_file(self, location):
         """
@@ -521,8 +517,7 @@ class ReportingService(BaseServiceArea):
         cloudsocket = urllib2.urlopen(reportUrl,None)
         reply = cloudsocket.read()
         cloudsocket.close()
-        d = datetime.datetime
-        return d.strptime(reply,"%Y-%m-%d %H:%M:%S")
+        return datetime.datetime.strptime(reply,"%Y-%m-%d %H:%M:%S")
         
     def get_reportage_auth(self, navperm, allowadmin):
         """
@@ -546,8 +541,6 @@ class ReportingService(BaseServiceArea):
         token = xmldoc.getElementsByTagName('auth')
         if token.length > 0:
             return token[0].childNodes[0].nodeValue
-        else:
-            return None
         
     def _get_reportage_service_url(self):
         """
