@@ -813,11 +813,8 @@ class RegistrationData(object):
         Arguments:
         data -- the raw result of the API method
         """
-        allResults = [];
         regs = xmldoc.getElementsByTagName("registration")
-        for reg in regs:
-            allResults.append(cls(reg))
-        return allResults
+        return [cls(reg) for reg in regs]
 
 
 class ServiceRequest(object):
